@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#20124d" />
+    <title>Chime Cut — make your own ringtone</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">YOUR SOUND, YOUR WAY</p>
+        <h1>Turn any audio clip into your next chime.</h1>
+        <p class="lede">Choose a song, voice memo, or sound effect. Trim the good part, then save it for your iPhone alarm or ringtone.</p>
+      </section>
+
+      <section class="editor-card" aria-labelledby="editor-title">
+        <div class="card-heading">
+          <div>
+            <p class="step">1. PICK A SOUND</p>
+            <h2 id="editor-title">Your audio clip</h2>
+          </div>
+          <button class="text-button" id="start-over" type="button" hidden>Choose another</button>
+        </div>
+
+        <label class="drop-zone" id="drop-zone" for="audio-file">
+          <input id="audio-file" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg" />
+          <span class="upload-icon" aria-hidden="true">♪</span>
+          <strong>Choose an audio file</strong>
+          <span>MP3, M4A, WAV, and most audio files work</span>
+        </label>
+
+        <div id="workspace" class="workspace" hidden>
+          <div class="file-row">
+            <span class="file-dot" aria-hidden="true"></span>
+            <span id="file-name">Your sound</span>
+            <span id="duration-label" class="muted"></span>
+          </div>
+
+          <canvas id="waveform" aria-label="Audio waveform preview"></canvas>
+
+          <div class="clip-stats" aria-live="polite">
+            <span>Clip starts at <strong id="start-display">0:00</strong></span>
+            <span>Length <strong id="length-display">0:30</strong></span>
+          </div>
+
+          <div class="slider-stack">
+            <label for="clip-start">Start</label>
+            <input id="clip-start" type="range" min="0" max="0" step="0.1" value="0" />
+            <label for="clip-length">Clip length <span>(ringtone-friendly: 30 seconds or less)</span></label>
+            <input id="clip-length" type="range" min="1" max="30" step="0.1" value="30" />
+          </div>
+
+          <div class="options">
+            <div class="option">
+              <label for="fade-in">Fade in</label>
+              <select id="fade-in">
+                <option value="0">None</option>
+                <option value="0.5">0.5 sec</option>
+                <option value="1" selected>1 sec</option>
+                <option value="2">2 sec</option>
+              </select>
+            </div>
+            <div class="option">
+              <label for="fade-out">Fade out</label>
+              <select id="fade-out">
+                <option value="0">None</option>
+                <option value="0.5">0.5 sec</option>
+                <option value="1" selected>1 sec</option>
+                <option value="2">2 sec</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="preview" class="secondary-button" type="button">▶ Preview clip</button>
+            <button id="download" class="primary-button" type="button">Save ringtone sound</button>
+          </div>
+          <p id="status" class="status" role="status"></p>
+        </div>
+      </section>
+
+      <section class="how-card">
+        <div>
+          <p class="step">2. ADD IT TO YOUR IPHONE</p>
+          <h2>Your finished sound is saved as a WAV file.</h2>
+        </div>
+        <ol>
+          <li>Save the download to the <strong>Files</strong> app.</li>
+          <li>Open <strong>GarageBand</strong>, import the WAV file, then share it as a ringtone.</li>
+          <li>In Clock or Settings, select your new sound for an alarm or ringtone.</li>
+        </ol>
+        <p class="quiet">Everything is handled in your browser—your audio is not uploaded anywhere.</p>
+      </section>
+    </main>
+    <footer>Chime Cut · Made for better mornings</footer>
+    <script src="app.js"></script>
+  </body>
+</html>
+
