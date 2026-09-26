@@ -25,10 +25,10 @@
         </div>
 
         <label class="drop-zone" id="drop-zone" for="audio-file">
-          <input id="audio-file" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg" />
+          <input id="audio-file" type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.ogg,.mp4,.mov,.m4v,.webm" />
           <span class="upload-icon" aria-hidden="true">♪</span>
           <strong>Choose an audio file</strong>
-          <span>MP3, M4A, WAV, and most audio files work</span>
+          <span>Audio or video files · MP3, M4A, WAV, MP4, MOV, and more</span>
         </label>
 
         <div id="workspace" class="workspace" hidden>
@@ -41,15 +41,15 @@
           <canvas id="waveform" aria-label="Audio waveform preview"></canvas>
 
           <div class="clip-stats" aria-live="polite">
-            <span>Clip starts at <strong id="start-display">0:00</strong></span>
-            <span>Length <strong id="length-display">0:30</strong></span>
+            <label>Starts at <input id="start-time" class="time-input" type="text" value="0:00" aria-label="Clip start time" /></label>
+            <label>Clip length <input id="length-time" class="time-input" type="text" value="0:00" aria-label="Clip length" /></label>
           </div>
 
           <div class="slider-stack">
             <label for="clip-start">Start</label>
             <input id="clip-start" type="range" min="0" max="0" step="0.1" value="0" />
-            <label for="clip-length">Clip length <span>(ringtone-friendly: 30 seconds or less)</span></label>
-            <input id="clip-length" type="range" min="1" max="30" step="0.1" value="30" />
+            <label for="clip-length">Clip length <span>(use as much or as little as you like)</span></label>
+            <input id="clip-length" type="range" min="1" max="1" step="1" value="1" />
           </div>
 
           <div class="options">
@@ -84,14 +84,14 @@
       <section class="how-card">
         <div>
           <p class="step">2. ADD IT TO YOUR IPHONE</p>
-          <h2>Your finished sound is saved as a WAV file.</h2>
+          <h2>Save the part you choose as a sound file.</h2>
         </div>
         <ol>
           <li>Save the download to the <strong>Files</strong> app.</li>
-          <li>Open <strong>GarageBand</strong>, import the WAV file, then share it as a ringtone.</li>
+          <li>Open <strong>GarageBand</strong>, import the sound file, then share it as a ringtone.</li>
           <li>In Clock or Settings, select your new sound for an alarm or ringtone.</li>
         </ol>
-        <p class="quiet">Everything is handled in your browser—your audio is not uploaded anywhere.</p>
+        <p class="quiet">Long clips are welcome. Video sound is captured while it plays, so keep this page open until the save finishes. Your media stays in your browser.</p>
       </section>
     </main>
     <footer>Chime Cut · Made for better mornings</footer>
