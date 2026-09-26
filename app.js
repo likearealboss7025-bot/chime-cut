@@ -44,6 +44,15 @@ function parseTime(value) {
 function selectedLength() { return Number(lengthSlider.value); }
 function selectedStart() { return Number(startSlider.value); }
 function totalDuration() { return buffer?.duration || mediaDuration; }
+function isVideoFile(file) { return file.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|ogv)$/i.test(file.name); }
+
+function seekVideo(seconds) {
+  if (Math.abs(video.currentTime - seconds) < 0.01) return Promise.resolve();
+  return new Promise((resolve) => {
+    video.addEventListener('seeked', resolve, { once: true });
+    video.currentTime = seconds;
+  });
+}
 
 function refreshControls() {
   const duration = totalDuration();
@@ -164,7 +173,7 @@ async function loadFile(file) {
   disposeMedia();
   try {
     status.textContent = 'Getting your sound ready…';
-    if (file.type.startsWith('video/')) {
+    if (isVideoFile(file)) {
       await loadVideo(file);
       displayLoaded(file, mediaDuration);
       status.textContent = 'Video loaded. Its sound will be captured as the selected section plays.';
@@ -212,8 +221,7 @@ async function playPreview() {
   if (audioContext?.state === 'suspended') await audioContext.resume();
   const length = selectedLength();
   if (video) {
-    video.currentTime = selectedStart();
-    await new Promise((resolve) => video.addEventListener('seeked', resolve, { once: true }));
+    await seekVideo(selectedStart());
     scheduleFade(length);
     try {
       await video.play();
@@ -297,8 +305,7 @@ async function exportVideoClip() {
     if (!recording) return;
     for (let channel = 0; channel < channels; channel++) chunks[channel].push(new Float32Array(event.inputBuffer.getChannelData(Math.min(channel, event.inputBuffer.numberOfChannels - 1))));
   };
-  video.currentTime = selectedStart();
-  await new Promise((resolve) => video.addEventListener('seeked', resolve, { once: true }));
+  await seekVideo(selectedStart());
   scheduleFade(seconds);
   status.textContent = `Capturing video audio… keep this page open for ${time(seconds)}.`;
   downloadButton.disabled = true;
