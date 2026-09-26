@@ -32,7 +32,8 @@ h2 { margin: 0; font-size: clamp(1.55rem, 4vw, 2.2rem); }
 .muted { margin-left: auto; color: var(--muted); font-size: .85rem; font-weight: 500; }
 canvas { display: block; width: 100%; height: 130px; border-radius: 14px; background: #eee8ff; }
 .clip-stats { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0 23px; color: var(--muted); font-size: .86rem; }
-.clip-stats strong { color: var(--ink); }
+.clip-stats label { display: flex; align-items: center; gap: 8px; }
+.time-input { width: 88px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: white; font: inherit; font-weight: 700; }
 .slider-stack { display: grid; grid-template-columns: max-content 1fr; align-items: center; column-gap: 16px; row-gap: 18px; font-size: .9rem; font-weight: 700; }
 .slider-stack label span { display: block; margin-top: 3px; color: var(--muted); font-size: .73rem; font-weight: 500; }
 input[type="range"] { width: 100%; accent-color: var(--purple); cursor: pointer; }
@@ -53,5 +54,5 @@ ol { margin: 0; padding-left: 22px; line-height: 1.55; }
 li + li { margin-top: 8px; }
 .quiet { grid-column: 1 / -1; margin: -4px 0 0; font-size: .85rem; }
 footer { padding: 2px 0 30px; color: var(--muted); text-align: center; font-size: .8rem; }
-@media (max-width: 600px) { .shell { width: min(100% - 24px, 900px); padding-top: 43px; } .hero { margin-bottom: 28px; } .drop-zone { min-height: 185px; } .slider-stack { grid-template-columns: 1fr; gap: 7px; } .slider-stack input { margin-bottom: 13px; } .options, .how-card { grid-template-columns: 1fr; } .actions { flex-direction: column; } .muted { display: none; } }
+@media (max-width: 600px) { .shell { width: min(100% - 24px, 900px); padding-top: 43px; } .hero { margin-bottom: 28px; } .drop-zone { min-height: 185px; } .slider-stack { grid-template-columns: 1fr; gap: 7px; } .slider-stack input { margin-bottom: 13px; } .options, .how-card { grid-template-columns: 1fr; } .actions { flex-direction: column; } .muted { display: none; } .clip-stats { align-items: start; flex-direction: column; } }
 
