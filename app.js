@@ -15,6 +15,7 @@ const downloadButton = document.querySelector('#download');
 const startOver = document.querySelector('#start-over');
 const fadeIn = document.querySelector('#fade-in');
 const fadeOut = document.querySelector('#fade-out');
+const waveformHint = document.querySelector('#waveform-hint');
 
 let audioContext;
 let buffer;
@@ -26,6 +27,11 @@ let selectedName = 'my-chime';
 let mediaDuration = 0;
 let previewTimer;
 let objectUrl;
+let waveformEnvelope = [];
+let maxRms = 0;
+let maxPeak = 0;
+let playheadTime = null;
+let animationFrame;
 
 function time(seconds) {
   const whole = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -45,6 +51,34 @@ function selectedLength() { return Number(lengthSlider.value); }
 function selectedStart() { return Number(startSlider.value); }
 function totalDuration() { return buffer?.duration || mediaDuration; }
 function isVideoFile(file) { return file.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|ogv)$/i.test(file.name); }
+
+function buildWaveform(bufferToRead) {
+  const bins = 1800;
+  const channels = Array.from({ length: bufferToRead.numberOfChannels }, (_, channel) => bufferToRead.getChannelData(channel));
+  waveformEnvelope = new Array(bins);
+  maxRms = 0;
+  maxPeak = 0;
+  for (let bin = 0; bin < bins; bin++) {
+    const start = Math.floor((bin * bufferToRead.length) / bins);
+    const end = Math.max(start + 1, Math.floor(((bin + 1) * bufferToRead.length) / bins));
+    const stride = Math.max(1, Math.floor((end - start) / 128));
+    let sumSquares = 0, peak = 0, count = 0;
+    for (let i = start; i < end; i += stride) {
+      let squareSum = 0;
+      for (const channel of channels) {
+        const sample = channel[i] || 0;
+        squareSum += sample * sample;
+        peak = Math.max(peak, Math.abs(sample));
+      }
+      sumSquares += squareSum / channels.length;
+      count++;
+    }
+    const rms = count ? Math.sqrt(sumSquares / count) : 0;
+    waveformEnvelope[bin] = { rms, peak };
+    maxRms = Math.max(maxRms, rms);
+    maxPeak = Math.max(maxPeak, peak);
+  }
+}
 
 function seekVideo(seconds) {
   if (Math.abs(video.currentTime - seconds) < 0.01) return Promise.resolve();
@@ -66,14 +100,19 @@ function refreshControls() {
   lengthSlider.value = Math.max(1, actualLength);
   startTime.value = time(selectedStart());
   lengthTime.value = time(actualLength);
+  canvas.setAttribute('aria-valuemax', String(Math.floor(Math.max(0, duration - actualLength))));
+  canvas.setAttribute('aria-valuenow', String(Math.floor(selectedStart())));
+  canvas.setAttribute('aria-valuetext', `Clip starts at ${time(selectedStart())}. Use left and right arrow keys to move the start.`);
   drawWaveform();
 }
 
 function resizeCanvas() {
   const ratio = window.devicePixelRatio || 1;
   const box = canvas.getBoundingClientRect();
-  canvas.width = Math.round(box.width * ratio);
-  canvas.height = Math.round(box.height * ratio);
+  const pixelWidth = Math.round(box.width * ratio);
+  const pixelHeight = Math.round(box.height * ratio);
+  if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+  if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 }
 
@@ -84,24 +123,24 @@ function drawWaveform() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = '#b29ce8';
-  if (buffer) {
-    const data = buffer.getChannelData(0);
-    const samplesPerBar = Math.max(1, Math.floor(data.length / width));
-    for (let x = 0; x < width; x += 2) {
-      let min = 1, max = -1;
-      const first = Math.floor(x * samplesPerBar);
-      for (let i = first; i < first + samplesPerBar * 2 && i < data.length; i++) {
-        min = Math.min(min, data[i]); max = Math.max(max, data[i]);
-      }
-      const y = (1 + min) * height / 2;
-      ctx.fillRect(x, y, 2, Math.max(1, (max - min) * height / 2));
+  if (buffer && waveformEnvelope.length) {
+    const plotHeight = height - 18;
+    const center = plotHeight / 2;
+    const barStep = width / waveformEnvelope.length;
+    for (let i = 0; i < waveformEnvelope.length; i++) {
+      const { rms, peak } = waveformEnvelope[i];
+      const relativeLoudness = maxRms ? Math.sqrt(rms / maxRms) : 0;
+      const rmsHeight = Math.max(2, relativeLoudness * plotHeight * 0.72);
+      const peakHeight = maxPeak ? (peak / maxPeak) * plotHeight * 0.9 : 2;
+      const x = i * barStep;
+      ctx.fillStyle = '#9476d8';
+      ctx.fillRect(x, center - rmsHeight / 2, Math.max(1, barStep * 0.72), rmsHeight);
+      ctx.fillStyle = '#c5b5ee';
+      ctx.fillRect(x + barStep * 0.36, center - peakHeight / 2, Math.max(1, barStep * 0.16), peakHeight);
     }
   } else {
-    for (let x = 0; x < width; x += 8) {
-      const barHeight = 12 + Math.abs(Math.sin(x * 0.11) * Math.cos(x * 0.043)) * (height * 0.35);
-      ctx.fillRect(x, (height - barHeight) / 2, 3, barHeight);
-    }
+    ctx.fillStyle = '#b5a8d5';
+    ctx.fillRect(0, (height - 18) / 2, width, 1);
   }
   const clipStart = (selectedStart() / duration) * width;
   const clipEnd = ((selectedStart() + selectedLength()) / duration) * width;
@@ -111,11 +150,32 @@ function drawWaveform() {
   ctx.strokeStyle = '#4d209b';
   ctx.lineWidth = 2;
   ctx.strokeRect(clipStart + 1, 1, Math.max(1, clipEnd - clipStart - 2), height - 2);
+  if (playheadTime !== null && playheadTime >= selectedStart() && playheadTime <= selectedStart() + selectedLength()) {
+    const playheadX = (playheadTime / duration) * width;
+    ctx.fillStyle = '#f0a928';
+    ctx.fillRect(playheadX - 1, 0, 3, height);
+  }
+  ctx.strokeStyle = '#c8bfdc';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, height - 15);
+  ctx.lineTo(width, height - 15);
+  ctx.stroke();
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.fillStyle = '#6f667e';
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'left';
+  ctx.fillText('0:00', 3, height - 1);
+  ctx.textAlign = 'center';
+  ctx.fillText(time(duration / 2), width / 2, height - 1);
+  ctx.textAlign = 'right';
+  ctx.fillText(time(duration), width - 3, height - 1);
 }
 
 function disposeMedia() {
   if (currentSource) { try { currentSource.stop(); } catch {} currentSource = null; }
   window.clearTimeout(previewTimer);
+  window.cancelAnimationFrame(animationFrame);
   if (video) {
     video.pause();
     video.removeAttribute('src');
@@ -127,6 +187,10 @@ function disposeMedia() {
   objectUrl = null;
   buffer = null;
   mediaDuration = 0;
+  waveformEnvelope = [];
+  maxRms = 0;
+  maxPeak = 0;
+  playheadTime = null;
   previewButton.textContent = '▶ Preview clip';
 }
 
@@ -176,12 +240,15 @@ async function loadFile(file) {
     if (isVideoFile(file)) {
       await loadVideo(file);
       displayLoaded(file, mediaDuration);
+      waveformHint.textContent = 'Video timeline selected. Upload an audio file to see its sound waveform.';
       status.textContent = 'Video loaded. Its sound will be captured as the selected section plays.';
     } else {
       audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
       buffer = await audioContext.decodeAudioData(await file.arrayBuffer());
       mediaDuration = buffer.duration;
+      buildWaveform(buffer);
       displayLoaded(file, buffer.duration);
+      waveformHint.textContent = 'Taller bars are louder. Tap or click the waveform to set the clip start.';
     }
   } catch (error) {
     console.error(error);
@@ -207,7 +274,17 @@ function finishVideoPlayback() {
   videoGain.gain.cancelScheduledValues(audioContext.currentTime);
   videoGain.gain.setValueAtTime(1, audioContext.currentTime);
   currentSource = null;
+  playheadTime = null;
+  window.cancelAnimationFrame(animationFrame);
+  drawWaveform();
   previewButton.textContent = '▶ Preview clip';
+}
+
+function animateVideoPlayhead() {
+  if (!video || video.paused) return;
+  playheadTime = video.currentTime;
+  drawWaveform();
+  animationFrame = window.requestAnimationFrame(animateVideoPlayhead);
 }
 
 async function playPreview() {
@@ -226,6 +303,7 @@ async function playPreview() {
     try {
       await video.play();
       previewButton.textContent = '■ Stop preview';
+      animateVideoPlayhead();
       previewTimer = window.setTimeout(finishVideoPlayback, length * 1000);
     } catch {
       status.textContent = 'Your browser could not preview this video. Try another video format.';
@@ -245,8 +323,17 @@ async function playPreview() {
   source.connect(gain).connect(audioContext.destination);
   source.start(0, selectedStart(), length);
   currentSource = source;
+  const sourceStart = selectedStart();
+  const startClock = audioContext.currentTime;
+  playheadTime = sourceStart;
+  const animateAudioPlayhead = () => {
+    playheadTime = sourceStart + (audioContext.currentTime - startClock);
+    drawWaveform();
+    if (currentSource) animationFrame = window.requestAnimationFrame(animateAudioPlayhead);
+  };
+  animationFrame = window.requestAnimationFrame(animateAudioPlayhead);
   previewButton.textContent = '■ Stop preview';
-  source.onended = () => { currentSource = null; previewButton.textContent = '▶ Preview clip'; };
+  source.onended = () => { currentSource = null; playheadTime = null; window.cancelAnimationFrame(animationFrame); drawWaveform(); previewButton.textContent = '▶ Preview clip'; };
 }
 
 function toWav(bufferToWrite, start, seconds, fadeInSeconds, fadeOutSeconds) {
@@ -340,9 +427,14 @@ async function exportVideoClip() {
     wav.setUint32(24, sampleRate, true); wav.setUint32(28, sampleRate * channels * 2, true); wav.setUint16(32, channels * 2, true); wav.setUint16(34, 16, true);
     writeString(36, 'data'); wav.setUint32(40, frames * channels * 2, true);
     let offset = 44;
-    for (let frame = 0; frame < frames; frame++) for (let channel = 0; channel < channels; channel++) {
-      const chunkIndex = Math.floor(frame / 4096);
-      const sample = chunks[channel][chunkIndex]?.[frame % 4096] || 0;
+    let chunkIndex = 0;
+    let chunkStart = 0;
+    for (let frame = 0; frame < frames; frame++) {
+      while (chunkIndex < chunks[0].length - 1 && frame >= chunkStart + chunks[0][chunkIndex].length) {
+        chunkStart += chunks[0][chunkIndex].length;
+        chunkIndex++;
+      }
+      const sample = chunks[0][chunkIndex]?.[frame - chunkStart] || 0;
       wav.setInt16(offset, Math.max(-1, Math.min(1, sample)) * 0x7fff, true);
       offset += 2;
     }
@@ -392,6 +484,21 @@ input.addEventListener('change', (event) => loadFile(event.target.files[0]));
 ['dragleave', 'drop'].forEach((name) => dropZone.addEventListener(name, (event) => { event.preventDefault(); dropZone.classList.remove('dragging'); }));
 dropZone.addEventListener('drop', (event) => loadFile(event.dataTransfer.files[0]));
 [startSlider, lengthSlider].forEach((slider) => slider.addEventListener('input', refreshControls));
+canvas.addEventListener('click', (event) => {
+  if (!totalDuration()) return;
+  const bounds = canvas.getBoundingClientRect();
+  const position = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+  startSlider.value = position * Math.max(0, totalDuration() - selectedLength());
+  refreshControls();
+});
+canvas.addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  event.preventDefault();
+  const amount = event.shiftKey ? 10 : 1;
+  const direction = event.key === 'ArrowRight' ? 1 : -1;
+  startSlider.value = Math.max(0, Math.min(Number(startSlider.max), selectedStart() + direction * amount));
+  refreshControls();
+});
 startTime.addEventListener('change', () => applyTimeField(startTime, 'start'));
 lengthTime.addEventListener('change', () => applyTimeField(lengthTime, 'length'));
 previewButton.addEventListener('click', playPreview);
