@@ -292,9 +292,11 @@ async function exportVideoClip() {
     return;
   }
   const seconds = selectedLength();
-  const sampleRate = audioContext.sampleRate;
-  const channels = 2;
-  const chunks = [[], []];
+  const sampleRate = 22050;
+  const channels = 1;
+  const chunks = [[]];
+  const sourceStep = audioContext.sampleRate / sampleRate;
+  let sourceOffset = 0;
   let recording = false;
   const processor = audioContext.createScriptProcessor(4096, channels, channels);
   const silent = audioContext.createGain();
@@ -303,7 +305,15 @@ async function exportVideoClip() {
   processor.connect(silent).connect(audioContext.destination);
   processor.onaudioprocess = (event) => {
     if (!recording) return;
-    for (let channel = 0; channel < channels; channel++) chunks[channel].push(new Float32Array(event.inputBuffer.getChannelData(Math.min(channel, event.inputBuffer.numberOfChannels - 1))));
+    const left = event.inputBuffer.getChannelData(0);
+    const right = event.inputBuffer.numberOfChannels > 1 ? event.inputBuffer.getChannelData(1) : left;
+    const samples = [];
+    for (let position = sourceOffset; position < left.length; position += sourceStep) {
+      const index = Math.floor(position);
+      samples.push((left[index] + right[index]) / 2);
+    }
+    sourceOffset = sourceOffset + Math.ceil((left.length - sourceOffset) / sourceStep) * sourceStep - left.length;
+    chunks[0].push(Float32Array.from(samples));
   };
   await seekVideo(selectedStart());
   scheduleFade(seconds);
