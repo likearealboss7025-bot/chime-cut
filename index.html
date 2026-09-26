@@ -38,7 +38,8 @@
             <span id="duration-label" class="muted"></span>
           </div>
 
-          <canvas id="waveform" aria-label="Audio waveform preview"></canvas>
+          <canvas id="waveform" role="slider" tabindex="0" aria-label="Audio waveform timeline. Click or tap to choose the clip start." aria-describedby="waveform-hint" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-valuetext="Clip starts at 0:00"></canvas>
+          <p id="waveform-hint" class="waveform-hint">Tap or click the waveform to move the clip start.</p>
 
           <div class="clip-stats" aria-live="polite">
             <label>Starts at <input id="start-time" class="time-input" type="text" value="0:00" aria-label="Clip start time" /></label>
